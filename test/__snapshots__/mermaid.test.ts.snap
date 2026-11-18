@@ -1,0 +1,67 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`toMermaid: determinism and samples > matches snapshots for the axion samples > api/current-user 1`] = `
+"flowchart LR
+  R["ADDED: Current user endpoint"]:::added
+  R -->|"Valid token"| S1C["<b>WHEN</b> a request to #96;GET /auth/me#96; carries a valid Supabase access token as a Bearer token"]
+  S1C --> S1O["<b>THEN</b> the response is 200 with that user's profile as the JSON body"]
+classDef added fill:#c8e6c9,stroke:#2e7d32,color:#111
+classDef modified fill:#ffe0b2,stroke:#ef6c00,color:#111
+classDef removed fill:#ffcdd2,stroke:#c62828,color:#111
+classDef renamed fill:#bbdefb,stroke:#1565c0,color:#111
+
+flowchart LR
+  R["ADDED: Current user endpoint requires authentication"]:::added
+  R -->|"Missing token"| S1C["<b>WHEN</b> a request to #96;GET /auth/me#96; has no Authorization header"]
+  S1C --> S1O["<b>THEN</b> the response is a 4xx error (403) and no user data is returned"]
+  R -->|"Invalid or expired token"| S2C["<b>WHEN</b> a request to #96;GET /auth/me#96; carries a token Supabase rejects"]
+  S2C --> S2O["<b>THEN</b> the response is 401 and no user data is returned"]
+classDef added fill:#c8e6c9,stroke:#2e7d32,color:#111
+classDef modified fill:#ffe0b2,stroke:#ef6c00,color:#111
+classDef removed fill:#ffcdd2,stroke:#c62828,color:#111
+classDef renamed fill:#bbdefb,stroke:#1565c0,color:#111
+
+flowchart LR
+  R["ADDED: Documented contract"]:::added
+  R -->|"Swagger lists the endpoint"| S1C["<b>WHEN</b> the Swagger JSON is requested"]
+  S1C --> S1O["<b>THEN</b> it contains #96;GET /auth/me#96; with a typed response schema for the profile"]
+classDef added fill:#c8e6c9,stroke:#2e7d32,color:#111
+classDef modified fill:#ffe0b2,stroke:#ef6c00,color:#111
+classDef removed fill:#ffcdd2,stroke:#c62828,color:#111
+classDef renamed fill:#bbdefb,stroke:#1565c0,color:#111"
+`;
+
+exports[`toMermaid: determinism and samples > matches snapshots for the axion samples > frontend/auth-shell 1`] = `
+"flowchart LR
+  R["ADDED: Login layout for anonymous users"]:::added
+  R -->|"Anonymous visit"| S1C["<b>WHEN</b> an anonymous user opens any app route"]
+  S1C --> S1O["<b>THEN</b> they are redirected to the login route and see the Login layout"]
+  R -->|"Invalid credentials"| S2C["<b>WHEN</b> the user submits credentials Supabase rejects"]
+  S2C --> S2O["<b>THEN</b> an error message is shown and the user stays on the Login layout"]
+  R -->|"Validation"| S3C["<b>WHEN</b> the user submits with an empty or malformed email, or empty password"]
+  S3C --> S3O["<b>THEN</b> field errors are shown and no login request is made"]
+classDef added fill:#c8e6c9,stroke:#2e7d32,color:#111
+classDef modified fill:#ffe0b2,stroke:#ef6c00,color:#111
+classDef removed fill:#ffcdd2,stroke:#c62828,color:#111
+classDef renamed fill:#bbdefb,stroke:#1565c0,color:#111
+
+flowchart LR
+  R["ADDED: Redirect to SystemUser layout after login"]:::added
+  R -->|"Successful login"| S1C["<b>WHEN</b> the user submits valid credentials"]
+  S1C --> S1O["<b>THEN</b> the current user is loaded and the app navigates to the SystemUser layout"]
+  R -->|"Logged-in user visits login"| S2C["<b>WHEN</b> a logged-in user opens the login route"]
+  S2C --> S2O["<b>THEN</b> they are redirected to the SystemUser layout"]
+classDef added fill:#c8e6c9,stroke:#2e7d32,color:#111
+classDef modified fill:#ffe0b2,stroke:#ef6c00,color:#111
+classDef removed fill:#ffcdd2,stroke:#c62828,color:#111
+classDef renamed fill:#bbdefb,stroke:#1565c0,color:#111
+
+flowchart LR
+  R["ADDED: Session changes drive navigation"]:::added
+  R -->|"Session expires or sign-out elsewhere"| S1C["<b>WHEN</b> the session ends while the app is open"]
+  S1C --> S1O["<b>THEN</b> the user is redirected to the login route"]
+classDef added fill:#c8e6c9,stroke:#2e7d32,color:#111
+classDef modified fill:#ffe0b2,stroke:#ef6c00,color:#111
+classDef removed fill:#ffcdd2,stroke:#c62828,color:#111
+classDef renamed fill:#bbdefb,stroke:#1565c0,color:#111"
+`;

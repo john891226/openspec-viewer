@@ -1,0 +1,57 @@
+name: Release
+
+# Push a tag like v0.1.0 (must equal the version in package.json) to release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Verify tag matches package.json version
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      # The prepackage hook fails on placeholders or missing metadata.
+      - name: Package
+        run: npm run package
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" ./*.vsix --title "$GITHUB_REF_NAME" --generate-notes
+
+      - name: Publish to VS Code Marketplace
+        if: env.VSCE_PAT != ''
+        run: npx vsce publish --packagePath ./*.vsix --pat "$VSCE_PAT"
+
+      - name: Publish to Open VSX
+        if: env.OVSX_PAT != ''
+        run: npx ovsx publish ./*.vsix --pat "$OVSX_PAT"
+
+      - name: Note skipped registries
+        if: env.VSCE_PAT == '' || env.OVSX_PAT == ''
+        run: echo "::warning::A registry token secret (VSCE_PAT / OVSX_PAT) is not configured, so that publish step was skipped. See docs/PUBLISHING.md."

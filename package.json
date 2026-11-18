@@ -1,0 +1,92 @@
+{
+  "name": "openspec-viewer",
+  "displayName": "OpenSpec Viewer",
+  "description": "Render OpenSpec spec.md files as live Mermaid diagrams, always derived from the scenarios.",
+  "version": "0.0.1",
+  "publisher": "juanpbacallao",
+  "license": "MIT",
+  "author": {
+    "name": "Juan Pablo Bacallao",
+    "email": "juanp.bacallao@gmail.com"
+  },
+  "keywords": [
+    "openspec",
+    "spec",
+    "viewer",
+    "diagram",
+    "mermaid",
+    "flowchart"
+  ],
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/john891226/openspec-viewer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/john891226/openspec-viewer/issues"
+  },
+  "homepage": "https://github.com/john891226/openspec-viewer#readme",
+  "main": "./dist/extension.js",
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "prepackage": "node scripts/check-metadata.mjs",
+    "package": "vsce package --no-dependencies",
+    "vscode:prepublish": "npm run build"
+  },
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "openspecViewer.viewAsDiagram",
+        "title": "OpenSpec: View as diagram",
+        "icon": "$(graph)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "openspecViewer.viewAsDiagram",
+          "when": "openspecViewer.isSpec",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "openspecViewer.viewAsDiagram",
+          "when": "openspecViewer.isSpec"
+        }
+      ]
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.6",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^4.1.1",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.15.0",
+    "jsdom": "^29.1.1",
+    "mermaid": "^12.3.0",
+    "ovsx": "^1.4.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.73.0",
+    "vitest": "^5.1.1"
+  }
+}
