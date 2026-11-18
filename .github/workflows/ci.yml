@@ -26,7 +26,7 @@ jobs:
       - run: npm run package
         env:
           OPENSPEC_VIEWER_ALLOW_PLACEHOLDERS: '1'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: openspec-viewer-vsix
           path: '*.vsix'
