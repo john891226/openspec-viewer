@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      # CI packages with placeholders allowed; the release workflow does not.
+      - run: npm run package
+        env:
+          OPENSPEC_VIEWER_ALLOW_PLACEHOLDERS: '1'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openspec-viewer-vsix
+          path: '*.vsix'
+          if-no-files-found: error
+
+  # Renders every fixture with the real webview bundle in headless Chrome (preinstalled on the runner).
+  # Separate job so it is easy to see, and to make required or not.
+  render-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run render-check

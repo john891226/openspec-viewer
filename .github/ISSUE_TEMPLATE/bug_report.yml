@@ -1,0 +1,24 @@
+name: Bug report
+description: Something does not render or behave as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: spec
+    attributes:
+      label: Spec snippet
+      description: A minimal `spec.md` that reproduces the problem.
+      render: markdown
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Extension version, VS Code version, OS.
+    validations:
+      required: true

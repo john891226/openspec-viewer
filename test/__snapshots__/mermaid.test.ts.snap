@@ -1,0 +1,112 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`snapshots over demo specs > changes/improve-checkout/specs/complex/checkout 1`] = `
+"flowchart LR
+  R["ADDED: Gift wrapping"]:::added
+  R --> O1["<b>Wrap selected</b><br/><b>WHEN</b> the shopper ticks &quot;Gift wrap&quot; at checkout"]
+  O1 --> S1O0["<b>THEN</b> a 3.00 fee line is added"]
+  S1O0 --> S1O1["<b>AND</b> the packing slip hides prices"]
+classDef added fill:#c8e6c9,stroke:#2e7d32,color:#111
+classDef modified fill:#ffe0b2,stroke:#ef6c00,color:#111
+classDef removed fill:#ffcdd2,stroke:#c62828,color:#111
+classDef renamed fill:#bbdefb,stroke:#1565c0,color:#111
+
+flowchart LR
+  R["MODIFIED: Payment"]:::modified
+  R --> D{"Scenarios"}
+  D --> O1["<b>Successful wallet payment</b><br/><b>WHEN</b> the shopper confirms an order paying with a wallet"]
+  O1 --> S1O0["<b>THEN</b> the wallet is charged for the total"]
+  S1O0 --> S1O1["<b>AND</b> the order status becomes &grave;paid&grave;"]
+  D --> O2["<b>Card declined</b><br/><b>WHEN</b> the payment provider responds with &grave;card_declined&grave;"]
+  O2 --> S2O0["<b>THEN</b> the order stays in &grave;pending&grave;"]
+  S2O0 --> S2O1["<b>AND</b> the shopper is offered the wallet option"]
+classDef added fill:#c8e6c9,stroke:#2e7d32,color:#111
+classDef modified fill:#ffe0b2,stroke:#ef6c00,color:#111
+classDef removed fill:#ffcdd2,stroke:#c62828,color:#111
+classDef renamed fill:#bbdefb,stroke:#1565c0,color:#111
+
+flowchart LR
+  R["REMOVED: Order history"]:::removed
+  R -->|"Reason"| X1["Order history moves to the account area and is specified there."]
+  R -->|"Migration"| X2["Use the account area's &quot;Orders&quot; page instead of &quot;My orders&quot; in checkout."]
+classDef added fill:#c8e6c9,stroke:#2e7d32,color:#111
+classDef modified fill:#ffe0b2,stroke:#ef6c00,color:#111
+classDef removed fill:#ffcdd2,stroke:#c62828,color:#111
+classDef renamed fill:#bbdefb,stroke:#1565c0,color:#111
+
+flowchart LR
+  O["Stock reservation"]:::renamed -->|"RENAMED"| N["Inventory hold"]:::renamed
+classDef added fill:#c8e6c9,stroke:#2e7d32,color:#111
+classDef modified fill:#ffe0b2,stroke:#ef6c00,color:#111
+classDef removed fill:#ffcdd2,stroke:#c62828,color:#111
+classDef renamed fill:#bbdefb,stroke:#1565c0,color:#111"
+`;
+
+exports[`snapshots over demo specs > specs/complex/checkout 1`] = `
+"flowchart LR
+  R["Cart totals"]
+  R --> D{"Scenarios"}
+  D --> O1["<b>Single item</b><br/><b>WHEN</b> the cart holds one item priced 10.00 with quantity 2"]
+  O1 --> S1O0["<b>THEN</b> the subtotal is 20.00"]
+  D --> O2["<b>Discount code applied</b><br/><b>GIVEN</b> a cart with a subtotal of 100.00<br/><b>WHEN</b> the shopper enters the code &grave;SAVE10&grave;"]
+  O2 --> S2C2{{"<b>AND</b> the code is active and not yet used by this account"}}
+  S2C2 --> S2C3{{"<b>AND</b> the cart contains at least one eligible item"}}
+  S2C3 --> S2O0["<b>THEN</b> the subtotal is reduced by 10%"]
+  S2O0 --> S2O1["<b>AND</b> the discount line shows &quot;SAVE10 (-10.00)&quot;"]
+  S2O1 --> S2O2["<b>AND</b> the code is marked as used only after payment succeeds"]
+  D --> O3["<b>Tax by region</b><br/><b>WHEN</b> the shipping address is in a region with 21% VAT"]
+  O3 --> S3O0["<b>THEN</b> tax is calculated on the discounted subtotal &vert; not on shipping"]
+  S3O0 --> S3O1["<b>AND</b> the tax line is rounded half-up to two decimals"]
+
+flowchart LR
+  R["Payment"]
+  R --> D{"Scenarios"}
+  D --> O1["<b>Successful card payment</b><br/><b>WHEN</b> the shopper confirms an order with a valid card"]
+  O1 --> S1O0["<b>THEN</b> the card is charged for the total"]
+  S1O0 --> S1O1["<b>AND</b> the order status becomes &grave;paid&grave;"]
+  S1O1 --> S1O2["<b>AND</b> a confirmation email is queued"]
+  D --> O2["<b>Card declined</b><br/><b>WHEN</b> the payment provider responds with &grave;card_declined&grave;"]
+  O2 --> S2O0["<b>THEN</b> the order stays in &grave;pending&grave;"]
+  S2O0 --> S2O1["<b>AND</b> the shopper sees &quot;Your card was declined, please try another method&quot;"]
+  S2O1 --> S2O2["<b>AND</b> no stock is released"]
+  D --> O3["<b>Duplicate submit</b><br/><b>WHEN</b> the shopper double-clicks &quot;Pay&quot; and two identical requests arrive within 2 seconds"]
+  O3 --> S3O0["<b>THEN</b> only the first request charges the card"]
+  S3O0 --> S3O1["<b>AND</b> the second returns the first result (idempotent)"]
+  D --> O4["<b>Provider timeout</b><br/><b>WHEN</b> the provider does not answer within 30 seconds"]
+  O4 --> S4O0["<b>THEN</b> the order is flagged &grave;needs_review&grave;"]
+  S4O0 --> S4O1["<b>AND</b> the shopper is told the result is unknown and not to retry"]
+
+flowchart LR
+  R["Stock reservation"]
+  R --> D{"Scenarios"}
+  D --> O1["<b>Reservation expires</b><br/><b>GIVEN</b> an order in &grave;pending&grave; for 15 minutes<br/><b>WHEN</b> the cleanup job runs"]
+  O1 --> S1O0["<b>THEN</b> the reserved stock is returned to the pool"]
+  D --> O2["<b>Out of stock during checkout</b><br/><b>WHEN</b> another shopper buys the last unit first"]
+  O2 --> S2O0["<b>THEN</b> the checkout shows &quot;Item &lt;b&gt;unavailable&lt;/b&gt; &lbrack;sold out&rbrack;&quot;"]
+  S2O0 --> S2O1["<b>AND</b> the line is removed from the cart"]
+
+flowchart LR
+  R["Order history"]
+  R --> D{"Scenarios"}
+  D --> O1["<b>Empty history</b><br/><b>WHEN</b> a shopper without orders opens &quot;My orders&quot;"]
+  O1 --> S1O0["<b>THEN</b> an empty-state message is displayed"]
+  D --> O2["<b>Many orders</b><br/><b>WHEN</b> a shopper has more than 20 orders"]
+  O2 --> S2O0["<b>THEN</b> the list is paginated 20 per page"]"
+`;
+
+exports[`snapshots over demo specs > specs/simple/login 1`] = `
+"flowchart LR
+  R["Password login"]
+  R --> D{"Scenarios"}
+  D --> O1["<b>Valid credentials</b><br/><b>GIVEN</b> a registered user with a verified email<br/><b>WHEN</b> they submit the correct email and password"]
+  O1 --> S1O0["<b>THEN</b> a session is created"]
+  S1O0 --> S1O1["<b>AND</b> they are redirected to the dashboard"]
+  D --> O2["<b>Wrong password</b><br/><b>WHEN</b> they submit a wrong password"]
+  O2 --> S2O0["<b>THEN</b> an error &quot;Invalid credentials&quot; is shown"]
+  S2O0 --> S2O1["<b>AND</b> no session is created"]
+
+flowchart LR
+  R["Sign out"]
+  R --> O1["<b>Explicit sign out</b><br/><b>WHEN</b> a signed-in user clicks &quot;Sign out&quot;"]
+  O1 --> S1O0["<b>THEN</b> the session is destroyed and the login page is shown"]"
+`;

@@ -1,0 +1,139 @@
+{
+  "name": "openspec-viewer",
+  "displayName": "OpenSpec Viewer",
+  "description": "Render OpenSpec spec.md files as live Mermaid diagrams, always derived from the scenarios.",
+  "version": "0.0.1",
+  "publisher": "juanpbacallao",
+  "license": "MIT",
+  "author": {
+    "name": "Juan Pablo Bacallao",
+    "email": "juanp.bacallao@gmail.com"
+  },
+  "keywords": [
+    "openspec",
+    "spec",
+    "viewer",
+    "diagram",
+    "mermaid",
+    "flowchart"
+  ],
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/john891226/openspec-viewer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/john891226/openspec-viewer/issues"
+  },
+  "homepage": "https://github.com/john891226/openspec-viewer#readme",
+  "main": "./dist/extension.js",
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "prepackage": "node scripts/check-metadata.mjs",
+    "package": "vsce package --no-dependencies",
+    "vscode:prepublish": "npm run build",
+    "render-check": "npm run build && node scripts/render-check.mjs"
+  },
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "openspecViewer.viewAsDiagram",
+        "title": "OpenSpec: View as diagram",
+        "icon": "$(graph)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "openspecViewer.viewAsDiagram",
+          "when": "openspecViewer.isSpec",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "openspecViewer.viewAsDiagram",
+          "when": "openspecViewer.isSpec"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "OpenSpec Viewer",
+      "properties": {
+        "openspecViewer.diagram.renderer": {
+          "type": "string",
+          "default": "flowchart",
+          "enum": [
+            "flowchart",
+            "statechart"
+          ],
+          "enumDescriptions": [
+            "A flowchart per requirement. Uses the layout and AND style settings.",
+            "A state-machine style diagram (like xstate): GIVEN is the source state, WHEN the event, AND a guard, THEN the target state. Ignores the layout and AND style settings."
+          ],
+          "description": "Which kind of diagram to draw. Both use Mermaid."
+        },
+        "openspecViewer.diagram.layout": {
+          "type": "string",
+          "default": "decision-diamond",
+          "enum": [
+            "decision-diamond",
+            "options-box",
+            "scenario-flow"
+          ],
+          "enumDescriptions": [
+            "The requirement leads to one decision diamond, with a branch per scenario (no diamond when there is a single scenario).",
+            "The requirement is one box listing its scenarios as numbered options; each option leads to its outcome.",
+            "The requirement leads to each scenario's condition and outcome separately, without a decision node."
+          ],
+          "description": "How each requirement is laid out in the diagram. A requirement's scenarios are treated as alternatives of one decision. Only applies when the renderer is flowchart."
+        },
+        "openspecViewer.diagram.andStyle": {
+          "type": "string",
+          "default": "chained",
+          "enum": [
+            "chained",
+            "list"
+          ],
+          "enumDescriptions": [
+            "The WHEN is the entry condition; each AND becomes its own hexagon condition node in sequence.",
+            "All WHEN/AND lines go in one node, and all THEN/AND lines in another."
+          ],
+          "description": "How AND lines are shown. Only applies when the renderer is flowchart."
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.6",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^4.1.1",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.15.0",
+    "jsdom": "^29.1.1",
+    "mermaid": "^12.3.0",
+    "ovsx": "^1.4.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.73.0",
+    "vitest": "^5.1.1"
+  }
+}
