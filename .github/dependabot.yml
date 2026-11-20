@@ -5,6 +5,10 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Must not be newer than "engines.vscode" in package.json, or `vsce package` refuses to build.
+      # Raise both together by hand when the minimum supported VS Code version goes up.
+      - dependency-name: '@types/vscode'
   - package-ecosystem: github-actions
     directory: /
     schedule:
