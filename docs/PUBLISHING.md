@@ -55,7 +55,7 @@ Some one-time steps cannot be automated. Do them in order.
 ## 2. VS Code Marketplace (Microsoft)
 
 1. Sign in at <https://marketplace.visualstudio.com/manage> with a Microsoft account.
-2. **Create publisher**. Pick a unique **ID** (lowercase, no spaces). This ID must equal `publisher` in `package.json` and is part of the extension id (`<publisher>.openspec-viewer`).
+2. **Create publisher**. Pick a unique **ID** (lowercase, no spaces). This ID must equal `publisher` in `package.json` and is part of the extension id (`<publisher>.openspec-diagrams`).
 3. Create an Azure DevOps organisation at <https://dev.azure.com> if you do not have one.
 4. In Azure DevOps: **User settings → Personal access tokens → New Token**
    - Organization: **All accessible organizations** (required, otherwise publishing fails with 401/403)
@@ -128,4 +128,4 @@ Watch the run under the repository's **Actions** tab. On success you get a GitHu
 - **Token expiry**: when a PAT expires, create a new one as in steps 2/3 and update the secret in step 4.
 - **Bad release**: the Marketplace lets you unpublish or deprecate a version from the manage page; Open VSX supports deprecating via its web UI. Fix forward with a new patch version.
 - **A failed release run**: fix the cause on `main` through a pull request. Then delete the tag (`git push origin :refs/tags/vX.Y.Z`, and `git tag -d vX.Y.Z`) and tag the new commit again. Nothing was published if the run stopped before the publish steps.
-- **Install a `.vsix` manually**: `code --install-extension openspec-viewer-<version>.vsix`.
+- **Install a `.vsix` manually**: `code --install-extension openspec-diagrams-<version>.vsix`.

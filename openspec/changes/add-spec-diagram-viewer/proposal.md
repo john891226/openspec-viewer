@@ -6,7 +6,7 @@ OpenSpec scenarios (`WHEN`/`THEN` lists) are precise for machines but hard for h
 
 ## What Changes
 
-- New VS Code extension "OpenSpec Viewer" (greenfield TypeScript project) that renders a `spec.md` as Mermaid flowcharts in a side webview panel.
+- New VS Code extension "OpenSpec Diagrams" (greenfield TypeScript project) that renders a `spec.md` as Mermaid flowcharts in a side webview panel.
 - A "View as diagram" action (CodeLens at top of file + editor title bar button) offered on spec files under `openspec/specs/**` and `openspec/changes/*/specs/**`.
 - One flowchart per requirement: requirement is the root, each scenario a branch, `WHEN` the condition, `THEN` the outcome, `AND` extending the previous step. Delta sections (ADDED/MODIFIED/REMOVED/RENAMED) are labelled.
 - Live re-render on edit/save, VS Code light/dark theme following, and a clear message when no requirements parse.
