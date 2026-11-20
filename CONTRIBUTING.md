@@ -37,7 +37,7 @@ Start with [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), a short map of the code
 
 This project uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) for non-trivial changes: propose a change under `openspec/changes/`, implement its tasks, then archive it. Small fixes can go straight to a pull request.
 
-- Branch from `main`, keep pull requests focused.
+- Branch from `main`, keep pull requests focused. `main` is protected: every change goes through a pull request, and it can only be merged when the **CI passed** check is green (it runs on the PR merged with the latest `main`).
 - Add or update tests for behaviour changes; `npm test`, `npm run lint` and `npm run typecheck` must pass.
 - Use clear, imperative commit messages (for example `Fix parsing of AND after GIVEN`). Conventional Commit prefixes are welcome but not required.
 - Update [CHANGELOG.md](CHANGELOG.md) under **Unreleased** for user-visible changes.

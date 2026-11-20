@@ -1,16 +1,31 @@
 name: CI
 
+# Runs on every pull request and on every push to main.
+#
+# For a pull request GitHub checks out the *merge result* (the PR combined with the current main),
+# so the tests run on the code as it would be after merging, not on the PR branch alone.
+# The "CI passed" job at the bottom is the single check to require in branch protection.
 on:
+  pull_request:
   push:
     branches: [main]
-  pull_request:
+  merge_group:
+  workflow_dispatch:
+  workflow_call: # lets the release workflow run exactly the same checks first
 
 permissions:
   contents: read
 
+# A newer push to the same pull request makes the older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
+    name: Lint, test, build, package
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,20 +37,20 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      # CI packages with placeholders allowed; the release workflow does not.
+      # The prepackage check fails on missing metadata or leftover placeholders.
       - run: npm run package
-        env:
-          OPENSPEC_VIEWER_ALLOW_PLACEHOLDERS: '1'
       - uses: actions/upload-artifact@v4
         with:
           name: openspec-viewer-vsix
           path: '*.vsix'
           if-no-files-found: error
 
-  # Renders every fixture with the real webview bundle in headless Chrome (preinstalled on the runner).
-  # Separate job so it is easy to see, and to make required or not.
+  # Draws every fixture with the real webview bundle in headless Chrome (preinstalled on the runner),
+  # because a diagram that parses is not always one that renders well.
   render-check:
+    name: Render check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -44,3 +59,23 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run render-check
+
+  # One stable name to require in branch protection. It fails if any job above failed, was
+  # cancelled or was skipped, so adding or renaming jobs never needs a settings change.
+  ci-passed:
+    name: CI passed
+    if: always()
+    needs: [build, render-check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the results of the jobs above
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then
+              echo "::error::At least one required job did not succeed."
+              exit 1
+            fi
+          done
