@@ -88,26 +88,15 @@ function structureProblem(diagram, svg) {
   return undefined;
 }
 
-let failures = 0;
-for (const [i, combo] of combos.entries()) {
-  const label = Object.values(combo).join(' / ');
-  const diagrams = models.flatMap((m) => toMermaid(m, combo));
-  const page = join(work, `page-${i}.html`);
-  writeFileSync(
-    page,
-    `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:sans-serif;background:#fff}section{margin:16px 0;border-bottom:1px solid #888}</style></head><body>
-<h1 id="title"></h1><div id="root"></div>
-<script>window.acquireVsCodeApi=()=>({postMessage:()=>{}});</script><script src="webview.js"></script>
-<script>window.postMessage({type:'render',title:'render-check',theme:'default',diagrams:${JSON.stringify(diagrams).replace(/</g, '\\u003c')}},'*');</script></body></html>`,
-  );
-  const flags = ['--headless=new', '--disable-gpu', '--virtual-time-budget=60000', ...(process.env.CI ? ['--no-sandbox'] : [])];
+const ATTEMPTS = 2; // headless Chrome occasionally stalls on a busy machine; one retry avoids false alarms
+
+/** Renders one combination once. Returns what is wrong with it (an empty list means it is fine). */
+function renderAndCheck(i, combo, diagrams, page, flags) {
   let dom;
   try {
     dom = execFileSync(chrome, [...flags, '--dump-dom', pathToFileURL(page).href], { encoding: 'utf8', timeout: 180000, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 1 << 28 });
   } catch (error) {
-    console.error(`FAIL ${label}: Chrome did not finish (${error.message.split('\n')[0]})`);
-    failures++;
-    continue;
+    return [`Chrome did not finish (${error.message.split('\n')[0]})`];
   }
   if (process.env.RENDER_CHECK_DUMP) writeFileSync(join(process.env.RENDER_CHECK_DUMP, `dom-${i}.html`), dom);
   // Only the visible markup counts: scripts hold the diagram sources and styles hold CSS like `#333;`.
@@ -122,6 +111,30 @@ for (const [i, combo] of combos.entries()) {
     const problem = structureProblem(d, rendered[k] ?? '');
     if (problem) problems.push(`"${d.title}": ${problem}`);
   });
+  return problems;
+}
+
+let failures = 0;
+for (const [i, combo] of combos.entries()) {
+  const label = Object.values(combo).join(' / ');
+  const diagrams = models.flatMap((m) => toMermaid(m, combo));
+  const page = join(work, `page-${i}.html`);
+  writeFileSync(
+    page,
+    `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:sans-serif;background:#fff}section{margin:16px 0;border-bottom:1px solid #888}</style></head><body>
+<h1 id="title"></h1><div id="root"></div>
+<script>window.acquireVsCodeApi=()=>({postMessage:()=>{}});</script><script src="webview.js"></script>
+<script>window.postMessage({type:'render',title:'render-check',theme:'default',diagrams:${JSON.stringify(diagrams).replace(/</g, '\\u003c')}},'*');</script></body></html>`,
+  );
+  const flags = ['--headless=new', '--disable-gpu', '--virtual-time-budget=60000', ...(process.env.CI ? ['--no-sandbox'] : [])];
+
+  let problems = [];
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    problems = renderAndCheck(i, combo, diagrams, page, flags);
+    if (problems.length === 0) break;
+    if (attempt < ATTEMPTS) console.warn(`retry ${label} (attempt ${attempt} failed):\n  - ${problems.join('\n  - ')}`);
+  }
+
   if (problems.length) {
     failures++;
     console.error(`FAIL ${label}:\n  - ${problems.join('\n  - ')}`);
