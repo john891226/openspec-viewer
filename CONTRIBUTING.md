@@ -7,13 +7,24 @@ Thanks for your interest in improving OpenSpec Viewer! By participating you agre
 Requires the Node version in [.nvmrc](.nvmrc) and VS Code.
 
 ```sh
-npm ci          # install dependencies
+npm ci          # install dependencies (exactly what the lockfile says)
 npm test        # unit tests (vitest)
 npm run lint    # eslint
 npm run typecheck
 npm run build   # bundle extension + webview into dist/
 npm run render-check   # render every fixture in headless Chrome (needs Chrome; set CHROME_PATH if not found)
 ```
+
+### Changing dependencies
+
+CI installs with the **newest npm** that ships with its Node, which is stricter than an older local npm. A lockfile written by an old npm can pass `npm ci` on your machine and still fail in CI with `Missing: … from lock file` (this happened with `@emnapi/core`). So when you add or update a dependency:
+
+```sh
+npx npm@latest install          # update package.json and package-lock.json with a current npm
+npx npm@latest ci --dry-run     # check the lockfile is consistent
+```
+
+Commit `package-lock.json` together with `package.json`.
 
 ## Run the extension
 
