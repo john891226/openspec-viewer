@@ -5,6 +5,7 @@ import mermaid from 'mermaid';
 import { describe, expect, it } from 'vitest';
 import { AND_STYLES, LAYOUTS, toMermaid } from '../src/core/mermaid';
 import { parseSpec } from '../src/core/parser';
+import { Renderer } from '../src/core/options';
 
 const fixtures = join(__dirname, 'fixtures');
 const files = (dir: string): string[] =>
@@ -19,7 +20,7 @@ describe('statechart diagrams are valid Mermaid', () => {
   it('for every fixture', async () => {
     let count = 0;
     for (const file of all) {
-      for (const d of toMermaid(parseSpec(readFileSync(file, 'utf8')), { renderer: 'statechart' })) {
+      for (const d of toMermaid(parseSpec(readFileSync(file, 'utf8')), { renderer: Renderer.Statechart })) {
         await expect(mermaid.parse(d.source), `${file}: ${d.title}`).resolves.toBeTruthy();
         count++;
       }
@@ -34,7 +35,7 @@ describe('generated diagrams are valid Mermaid for every layout and AND style', 
       it(`${layout} + ${andStyle}`, async () => {
         let count = 0;
         for (const file of all) {
-          for (const d of toMermaid(parseSpec(readFileSync(file, 'utf8')), { renderer: 'flowchart', layout, andStyle })) {
+          for (const d of toMermaid(parseSpec(readFileSync(file, 'utf8')), { renderer: Renderer.Flowchart, layout, andStyle })) {
             await expect(mermaid.parse(d.source), `${file}: ${d.title}`).resolves.toBeTruthy();
             count++;
           }

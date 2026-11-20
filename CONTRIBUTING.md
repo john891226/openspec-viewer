@@ -25,6 +25,9 @@ Try it against the fixtures in `test/fixtures/` (copy one into a folder named li
 
 ## Architecture rules
 
+Start with [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), a short map of the code and the patterns it uses.
+
+
 - `src/core` is pure TypeScript with **no `vscode` import** (enforced by lint). Parser and Mermaid generation belong here, with unit tests.
 - `src/extension` is the VS Code host; `src/webview` runs inside the panel and renders with the bundled Mermaid. No remote resources.
 - Diagrams are always derived from the spec; never store them.

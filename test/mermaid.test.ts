@@ -3,10 +3,11 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { escapeLabel, resolveOptions, toMermaid, type DiagramOptions } from '../src/core/mermaid';
 import { parseSpec } from '../src/core/parser';
+import { AndStyle, AND_STYLES, Layout, LAYOUTS, Renderer } from '../src/core/options';
 
 const fixture = (name: string) => readFileSync(join(__dirname, 'fixtures', name), 'utf8');
 // The default renderer is the statechart; these tests are about the flowchart renderer.
-const gen = (text: string, options?: DiagramOptions) => toMermaid(parseSpec(text), { renderer: 'flowchart', ...options });
+const gen = (text: string, options?: DiagramOptions) => toMermaid(parseSpec(text), { renderer: Renderer.Flowchart, ...options });
 
 const SPEC =
   '### Requirement: Pay\n' +
@@ -21,16 +22,16 @@ describe('toMermaid: defaults and structure', () => {
   });
 
   it('defaults to the decision-diamond layout with chained ANDs', () => {
-    expect(gen(SPEC)[0]?.source).toBe(gen(SPEC, { layout: 'decision-diamond', andStyle: 'chained' })[0]?.source);
+    expect(gen(SPEC)[0]?.source).toBe(gen(SPEC, { layout: Layout.DecisionDiamond, andStyle: AndStyle.Chained })[0]?.source);
   });
 
   it('falls back to defaults for unknown option values', () => {
-    expect(resolveOptions({ layout: 'nope', andStyle: 'diamonds' })).toEqual({ renderer: 'statechart', layout: 'decision-diamond', andStyle: 'chained' });
+    expect(resolveOptions({ layout: 'nope', andStyle: 'diamonds' })).toEqual({ renderer: Renderer.Statechart, layout: Layout.DecisionDiamond, andStyle: AndStyle.Chained });
     expect(gen(SPEC, { layout: 'x' as never })[0]?.source).toBe(gen(SPEC)[0]?.source);
   });
 
   it('renders a requirement without scenarios as a lone root', () => {
-    for (const layout of ['options-box', 'decision-diamond', 'scenario-flow'] as const) {
+    for (const layout of LAYOUTS) {
       expect(gen('### Requirement: Alone', { layout })[0]?.source).toBe('flowchart LR\n  R["Alone"]');
     }
   });
@@ -42,7 +43,7 @@ describe('toMermaid: defaults and structure', () => {
 });
 
 describe('layout: decision-diamond', () => {
-  const src = gen(SPEC, { layout: 'decision-diamond' })[0]?.source ?? '';
+  const src = gen(SPEC, { layout: Layout.DecisionDiamond })[0]?.source ?? '';
 
   it('goes through one decision node with a branch per scenario', () => {
     expect(src).toContain('R --> D{"Scenarios"}');
@@ -78,12 +79,12 @@ describe('GIVEN followed by WHEN', () => {
   });
 
   it('merges them in options-box too', () => {
-    expect(gen(GIVEN, { layout: 'options-box' })[0]?.source).toContain('<b>GIVEN</b> g<br/><b>WHEN</b> w"]');
+    expect(gen(GIVEN, { layout: Layout.OptionsBox })[0]?.source).toContain('<b>GIVEN</b> g<br/><b>WHEN</b> w"]');
   });
 });
 
 describe('layout: options-box', () => {
-  const src = gen(SPEC, { layout: 'options-box' })[0]?.source ?? '';
+  const src = gen(SPEC, { layout: Layout.OptionsBox })[0]?.source ?? '';
 
   it('lists scenarios as numbered options inside one subgraph', () => {
     expect(src).toContain('subgraph R["Pay"]');
@@ -98,12 +99,12 @@ describe('layout: options-box', () => {
   });
 
   it('still shows a scenario with no steps', () => {
-    expect(gen('### Requirement: R\n#### Scenario: s', { layout: 'options-box' })[0]?.source).toContain('(no steps)');
+    expect(gen('### Requirement: R\n#### Scenario: s', { layout: Layout.OptionsBox })[0]?.source).toContain('(no steps)');
   });
 });
 
 describe('layout: scenario-flow', () => {
-  const src = gen(SPEC, { layout: 'scenario-flow' })[0]?.source ?? '';
+  const src = gen(SPEC, { layout: Layout.ScenarioFlow })[0]?.source ?? '';
 
   it('links the requirement to each scenario via a labelled edge, without a diamond', () => {
     expect(src).toContain('R -->|"Discount"| S1C0["<b>WHEN</b> a"]');
@@ -112,15 +113,15 @@ describe('layout: scenario-flow', () => {
   });
 
   it('draws a scenario lacking WHEN or THEN, or any steps', () => {
-    expect(gen('### Requirement: A\n#### Scenario: s\n- **WHEN** only', { layout: 'scenario-flow' })[0]?.source).not.toContain('S1O');
-    expect(gen('### Requirement: A\n#### Scenario: s\n- **THEN** only', { layout: 'scenario-flow' })[0]?.source).toContain('R -->|"s"| S1O0[');
-    expect(gen('### Requirement: A\n#### Scenario: s', { layout: 'scenario-flow' })[0]?.source).toContain('(no steps)');
+    expect(gen('### Requirement: A\n#### Scenario: s\n- **WHEN** only', { layout: Layout.ScenarioFlow })[0]?.source).not.toContain('S1O');
+    expect(gen('### Requirement: A\n#### Scenario: s\n- **THEN** only', { layout: Layout.ScenarioFlow })[0]?.source).toContain('R -->|"s"| S1O0[');
+    expect(gen('### Requirement: A\n#### Scenario: s', { layout: Layout.ScenarioFlow })[0]?.source).toContain('(no steps)');
   });
 });
 
 describe('AND style', () => {
   it('chained: each AND is its own hexagon condition, outcomes follow in sequence', () => {
-    const src = gen(SPEC, { layout: 'scenario-flow', andStyle: 'chained' })[0]?.source ?? '';
+    const src = gen(SPEC, { layout: Layout.ScenarioFlow, andStyle: AndStyle.Chained })[0]?.source ?? '';
     expect(src).toContain('S1C0 --> S1C1{{"<b>AND</b> b"}}');
     expect(src).toContain('S1C1 --> S1C2{{"<b>AND</b> c"}}');
     expect(src).toContain('S1C2 --> S1O0["<b>THEN</b> x"]');
@@ -128,15 +129,15 @@ describe('AND style', () => {
   });
 
   it('never uses a decision diamond for an AND', () => {
-    for (const layout of ['decision-diamond', 'options-box', 'scenario-flow'] as const) {
-      const src = gen(SPEC, { layout, andStyle: 'chained' })[0]?.source ?? '';
+    for (const layout of LAYOUTS) {
+      const src = gen(SPEC, { layout, andStyle: AndStyle.Chained })[0]?.source ?? '';
       expect(src.replace(/\{\{/g, '').match(/S\dC\d\{/g)).toBeNull();
     }
   });
 
   it('chained in the default layout: WHEN merged into the branch node, ANDs as hexagons', () => {
-    for (const layout of ['decision-diamond', 'options-box'] as const) {
-      const src = gen(SPEC, { layout, andStyle: 'chained' })[0]?.source ?? '';
+    for (const layout of [Layout.DecisionDiamond, Layout.OptionsBox]) {
+      const src = gen(SPEC, { layout, andStyle: AndStyle.Chained })[0]?.source ?? '';
       expect(src).toContain('O1 --> S1C1{{"<b>AND</b> b"}}');
     }
     const src = gen(SPEC)[0]?.source ?? '';
@@ -145,14 +146,14 @@ describe('AND style', () => {
   });
 
   it('list: one condition node and one outcome node', () => {
-    const src = gen(SPEC, { layout: 'scenario-flow', andStyle: 'list' })[0]?.source ?? '';
+    const src = gen(SPEC, { layout: Layout.ScenarioFlow, andStyle: AndStyle.List })[0]?.source ?? '';
     expect(src).toContain('S1C["<b>WHEN</b> a<br/><b>AND</b> b<br/><b>AND</b> c"]');
     expect(src).toContain('S1O["<b>THEN</b> x<br/><b>AND</b> y"]');
   });
 
   it('list in merged layouts: conditions merged into the branch node', () => {
-    expect(gen(SPEC, { layout: 'options-box', andStyle: 'list' })[0]?.source).toContain('O1["<b>1.</b> Discount<br/><b>WHEN</b> a<br/><b>AND</b> b<br/><b>AND</b> c"]');
-    const src = gen(SPEC, { layout: 'decision-diamond', andStyle: 'list' })[0]?.source ?? '';
+    expect(gen(SPEC, { layout: Layout.OptionsBox, andStyle: AndStyle.List })[0]?.source).toContain('O1["<b>1.</b> Discount<br/><b>WHEN</b> a<br/><b>AND</b> b<br/><b>AND</b> c"]');
+    const src = gen(SPEC, { layout: Layout.DecisionDiamond, andStyle: AndStyle.List })[0]?.source ?? '';
     expect(src).toContain('O1["<b>Discount</b><br/><b>WHEN</b> a<br/><b>AND</b> b<br/><b>AND</b> c"]');
   });
 });
@@ -165,8 +166,8 @@ describe('escaping', () => {
   });
 
   it('never emits Mermaid-style `#code;` entities, so labels do not depend on the page charset', () => {
-    for (const layout of ['decision-diamond', 'options-box', 'scenario-flow'] as const) {
-      for (const andStyle of ['chained', 'list'] as const) {
+    for (const layout of LAYOUTS) {
+      for (const andStyle of AND_STYLES) {
         const [d] = gen(fixture('special-chars.md'), { layout, andStyle });
         expect(d?.source).not.toMatch(/#\w+;/);
       }
@@ -174,7 +175,7 @@ describe('escaping', () => {
   });
 
   it('never leaves raw angle brackets from user text in the source', () => {
-    for (const layout of ['options-box', 'decision-diamond', 'scenario-flow'] as const) {
+    for (const layout of LAYOUTS) {
       const [d] = gen(fixture('special-chars.md'), { layout });
       const body = (d?.source ?? '').replace(/<\/?b>|<br\/>/g, '');
       expect(body).not.toMatch(/<(?!\/?b>|br\/>)/);
@@ -187,7 +188,7 @@ describe('delta labelling', () => {
   const text = fixture('removed-renamed.md');
 
   it('labels MODIFIED with text and styling (options-box)', () => {
-    const src = gen(text, { layout: 'options-box' })[0]?.source ?? '';
+    const src = gen(text, { layout: Layout.OptionsBox })[0]?.source ?? '';
     expect(src).toContain('subgraph R["MODIFIED: Login"]');
     expect(src).toContain('style R fill:#ffe0b2');
   });
