@@ -2,7 +2,7 @@
   "name": "openspec-diagrams",
   "displayName": "OpenSpec Diagrams",
   "description": "Render OpenSpec spec.md files as live Mermaid diagrams, always derived from the scenarios.",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "juanpbacallao",
   "license": "MIT",
   "author": {
