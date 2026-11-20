@@ -9,7 +9,7 @@ All notable changes to this project are documented here. The format follows
 ### Added
 - "View as diagram" CodeLens and editor title button for OpenSpec `spec.md` files.
 - Side panel rendering one Mermaid flowchart per requirement (WHEN as condition, THEN as outcome, AND extending the previous step).
-- Setting `openspecViewer.diagram.renderer` (`flowchart` default, `statechart`): a state-machine style diagram where GIVEN is the source state, WHEN the event, AND a guard and THEN the target state.
+- Setting `openspecViewer.diagram.renderer` (`statechart` default, `flowchart`): a state-machine style diagram where GIVEN is the source state, WHEN the event, AND a guard and THEN the target state.
 - Settings `openspecViewer.diagram.layout` (`decision-diamond` default, `options-box`, `scenario-flow`) and `openspecViewer.diagram.andStyle` (`chained` default, `list`).
 - Delta labelling for ADDED, MODIFIED, REMOVED and RENAMED requirements.
 - Live refresh on edit/save, light/dark theme following, and a message for files with no requirements.

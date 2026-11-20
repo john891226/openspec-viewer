@@ -5,7 +5,8 @@ import { escapeLabel, resolveOptions, toMermaid, type DiagramOptions } from '../
 import { parseSpec } from '../src/core/parser';
 
 const fixture = (name: string) => readFileSync(join(__dirname, 'fixtures', name), 'utf8');
-const gen = (text: string, options?: DiagramOptions) => toMermaid(parseSpec(text), options);
+// The default renderer is the statechart; these tests are about the flowchart renderer.
+const gen = (text: string, options?: DiagramOptions) => toMermaid(parseSpec(text), { renderer: 'flowchart', ...options });
 
 const SPEC =
   '### Requirement: Pay\n' +
@@ -24,7 +25,7 @@ describe('toMermaid: defaults and structure', () => {
   });
 
   it('falls back to defaults for unknown option values', () => {
-    expect(resolveOptions({ layout: 'nope', andStyle: 'diamonds' })).toEqual({ renderer: 'flowchart', layout: 'decision-diamond', andStyle: 'chained' });
+    expect(resolveOptions({ layout: 'nope', andStyle: 'diamonds' })).toEqual({ renderer: 'statechart', layout: 'decision-diamond', andStyle: 'chained' });
     expect(gen(SPEC, { layout: 'x' as never })[0]?.source).toBe(gen(SPEC)[0]?.source);
   });
 

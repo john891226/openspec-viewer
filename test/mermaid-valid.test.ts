@@ -34,7 +34,7 @@ describe('generated diagrams are valid Mermaid for every layout and AND style', 
       it(`${layout} + ${andStyle}`, async () => {
         let count = 0;
         for (const file of all) {
-          for (const d of toMermaid(parseSpec(readFileSync(file, 'utf8')), { layout, andStyle })) {
+          for (const d of toMermaid(parseSpec(readFileSync(file, 'utf8')), { renderer: 'flowchart', layout, andStyle })) {
             await expect(mermaid.parse(d.source), `${file}: ${d.title}`).resolves.toBeTruthy();
             count++;
           }

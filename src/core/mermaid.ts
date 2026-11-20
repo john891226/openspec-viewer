@@ -15,7 +15,7 @@ export interface DiagramOptions {
   andStyle?: AndStyle;
 }
 
-export const DEFAULT_RENDERER: Renderer = 'flowchart';
+export const DEFAULT_RENDERER: Renderer = 'statechart';
 export const RENDERERS: readonly Renderer[] = ['flowchart', 'statechart'];
 export const DEFAULT_LAYOUT: Layout = 'decision-diamond';
 export const DEFAULT_AND_STYLE: AndStyle = 'chained';

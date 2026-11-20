@@ -10,10 +10,11 @@ const src = (text: string) => gen(text)[0]?.source ?? '';
 const FULL = '### Requirement: R\n#### Scenario: s\n- **GIVEN** g\n- **WHEN** w\n- **AND** c\n- **THEN** t\n- **AND** a';
 
 describe('statechart renderer', () => {
-  it('is a state diagram and is not the default', () => {
+  it('is a state diagram and is the default renderer', () => {
     expect(src(FULL).startsWith('stateDiagram-v2')).toBe(true);
-    expect(toMermaid(parseSpec(FULL))[0]?.source.startsWith('flowchart')).toBe(true);
-    expect(resolveOptions({ renderer: 'x' }).renderer).toBe('flowchart');
+    expect(toMermaid(parseSpec(FULL))[0]?.source).toBe(src(FULL));
+    expect(resolveOptions({ renderer: 'x' }).renderer).toBe('statechart');
+    expect(toMermaid(parseSpec(FULL), { renderer: 'flowchart' })[0]?.source.startsWith('flowchart')).toBe(true);
   });
 
   it('maps GIVEN to the source state, WHEN to the event, AND to a guard, THEN to the target', () => {

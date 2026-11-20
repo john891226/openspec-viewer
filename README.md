@@ -11,7 +11,7 @@ OpenSpec scenarios (`WHEN` / `THEN`) are precise for machines but hard for human
 
 - **View as diagram** from a CodeLens at the top of the file and from the editor title bar button.
 - One **Mermaid flowchart per requirement**: the requirement is the root, each scenario a branch, `WHEN` the condition, `THEN` the outcome. `AND` lines extend the previous `WHEN` / `THEN`.
-- **Scenarios as branches of one decision**: a requirement leads to a single diamond with one branch per scenario (no diamond when there is only one). Other layouts are available in the settings.
+- **State-machine diagrams by default** (like xstate): `GIVEN` is the source state, `WHEN` the event, `AND` guards, `THEN` the target state. A flowchart renderer is available in the settings, where a requirement leads to a single diamond with one branch per scenario.
 - **AND lines as conditions**: each AND becomes its own condition node (hexagon) in the chain, or can be shown as a list.
 - **Delta specs** are labelled and colour-coded: `ADDED`, `MODIFIED`, `REMOVED` (with reason) and `RENAMED`.
 - **Live**: re-renders as you type and on save, follows the VS Code light/dark theme.
@@ -36,13 +36,13 @@ The action is offered on files named `spec.md` located at:
 
 | Setting | Values | Default |
 | --- | --- | --- |
-| `openspecViewer.diagram.renderer` | `flowchart`, `statechart` | `flowchart` |
+| `openspecViewer.diagram.renderer` | `statechart`, `flowchart` | `statechart` |
 | `openspecViewer.diagram.layout` | `decision-diamond`, `options-box`, `scenario-flow` | `decision-diamond` |
 | `openspecViewer.diagram.andStyle` | `chained`, `list` | `chained` |
 
-`layout` and `andStyle` only apply to the `flowchart` renderer.
+`layout` and `andStyle` only apply when the renderer is `flowchart`.
 
-The **`statechart`** renderer draws a state machine, similar to xstate: `GIVEN` is the source state, `WHEN` the event on the arrow, `AND` lines before `THEN` are guards (`[a && b]`), `THEN` is the target state and later `AND` lines are actions listed inside it. Scenarios whose `GIVEN` or first `THEN` text is *identical* share a state, so related scenarios connect on their own.
+The default **`statechart`** renderer draws a state machine, similar to xstate: `GIVEN` is the source state, `WHEN` the event on the arrow, `AND` lines before `THEN` are guards (`[a && b]`), `THEN` is the target state and later `AND` lines are actions listed inside it. Scenarios whose `GIVEN` or first `THEN` text is *identical* share a state, so related scenarios connect on their own.
 
 Open panels re-render as soon as a setting changes.
 
