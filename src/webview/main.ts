@@ -1,54 +1,79 @@
+/**
+ * Runs inside the panel's webview: receives diagrams from the extension and draws them with the
+ * bundled Mermaid. Nothing is loaded from the network.
+ */
 import mermaid from 'mermaid';
-import type { RenderMessage } from '../extension/messages';
+import { MessageType } from '../extension/messages';
+import type { ReadyMessage, RenderMessage } from '../extension/messages';
 
 declare function acquireVsCodeApi(): { postMessage(message: unknown): void };
 
-const vscode = acquireVsCodeApi();
-const root = document.getElementById('root') as HTMLElement;
-const titleEl = document.getElementById('title') as HTMLElement;
-let renderId = 0;
+const NO_REQUIREMENTS_MESSAGE =
+  'No requirements found. Expected "### Requirement: <name>" blocks, each with "#### Scenario: <name>" blocks using "- **WHEN** …" and "- **THEN** …" lines.';
 
-function message(text: string, cls = ''): HTMLElement {
-  const p = document.createElement('p');
-  p.className = `message ${cls}`.trim();
-  p.textContent = text;
-  return p;
+enum NoticeKind {
+  Info = '',
+  Error = 'error',
 }
 
-async function render(msg: RenderMessage): Promise<void> {
-  const current = ++renderId;
-  titleEl.textContent = msg.title;
-  mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: msg.theme });
+function notice(text: string, kind = NoticeKind.Info): HTMLElement {
+  const element = document.createElement('p');
+  element.className = `message ${kind}`.trim();
+  element.textContent = text;
+  return element;
+}
 
-  const fragment = document.createDocumentFragment();
-  if (msg.diagrams.length === 0) {
-    const empty = message(
-      'No requirements found. Expected "### Requirement: <name>" blocks, each with "#### Scenario: <name>" blocks using "- **WHEN** …" and "- **THEN** …" lines.',
-    );
-    fragment.append(empty);
+/** The page: a title and one section per diagram. */
+class DiagramPage {
+  private drawCount = 0;
+
+  constructor(
+    private readonly titleElement: HTMLElement,
+    private readonly rootElement: HTMLElement,
+  ) {}
+
+  async show(message: RenderMessage): Promise<void> {
+    const thisDraw = ++this.drawCount;
+    this.titleElement.textContent = message.title;
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: message.theme });
+
+    const content = document.createDocumentFragment();
+    if (message.diagrams.length === 0) content.append(notice(NO_REQUIREMENTS_MESSAGE));
+
+    for (const [index, diagram] of message.diagrams.entries()) {
+      content.append(await this.drawSection(diagram.title, diagram.source, `d${thisDraw}-${index}`));
+    }
+
+    // A newer message may have arrived while we were drawing; only the latest one is shown.
+    if (thisDraw === this.drawCount) this.rootElement.replaceChildren(content);
   }
 
-  for (const [i, diagram] of msg.diagrams.entries()) {
+  /** One diagram, or an error in its place so the others still show. */
+  private async drawSection(title: string, source: string, elementId: string): Promise<HTMLElement> {
     const section = document.createElement('section');
     const heading = document.createElement('h2');
-    heading.textContent = diagram.title;
+    heading.textContent = title;
     section.append(heading);
-    try {
-      const { svg } = await mermaid.render(`d${current}-${i}`, diagram.source);
-      const holder = document.createElement('div');
-      holder.innerHTML = svg;
-      section.append(holder);
-    } catch (error) {
-      section.append(message(`Could not render this diagram: ${error instanceof Error ? error.message : String(error)}`, 'error'));
-    }
-    fragment.append(section);
-  }
 
-  // Ignore results of a render that a newer message has superseded.
-  if (current === renderId) root.replaceChildren(fragment);
+    try {
+      const { svg } = await mermaid.render(elementId, source);
+      const figure = document.createElement('div');
+      figure.innerHTML = svg;
+      section.append(figure);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      section.append(notice(`Could not render this diagram: ${reason}`, NoticeKind.Error));
+    }
+    return section;
+  }
 }
 
+const vscodeApi = acquireVsCodeApi();
+const page = new DiagramPage(document.getElementById('title') as HTMLElement, document.getElementById('root') as HTMLElement);
+
 window.addEventListener('message', (event: MessageEvent<RenderMessage>) => {
-  if (event.data?.type === 'render') void render(event.data);
+  if (event.data?.type === MessageType.Render) void page.show(event.data);
 });
-vscode.postMessage({ type: 'ready' });
+
+const ready: ReadyMessage = { type: MessageType.Ready };
+vscodeApi.postMessage(ready);

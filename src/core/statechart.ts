@@ -1,66 +1,71 @@
 /**
- * Statechart renderer: a Mermaid state diagram read like a state machine.
- * GIVEN is the source state, WHEN the event, AND (before THEN) a guard, THEN the
- * target state and AND after THEN its actions. Pure; no editor dependency.
+ * The statechart renderer: a Mermaid state diagram read like a state machine (xstate style).
+ *
+ *   GIVEN            → the state the system starts in
+ *   WHEN             → the event on the arrow
+ *   AND (before THEN) → a guard on the arrow, `[a && b]`
+ *   THEN             → the state it ends in
+ *   AND (after THEN)  → actions, listed inside the ending state
+ *
+ * States with identical text are shared, so scenarios that mention the same state connect.
  */
-import type { Requirement, Scenario, Step } from './parser';
+import { bold, escapeLabel, escapeTransitionLabel, LINE_BREAK, requirementLabel } from './labels';
+import { DeltaKind, StepKeyword, StepPhase } from './model';
+import type { Requirement, Scenario, Step } from './model';
+import { classDefinition, classNameOf } from './palette';
+import { ROOT_ID } from './renderer';
+import type { RequirementRenderer } from './renderer';
 
-export interface StatechartColors {
-  [delta: string]: { fill: string; stroke: string };
+const START_MARKER = '[*]';
+const NO_OUTCOME_LABEL = '(no outcome)';
+const GUARD_SEPARATOR = ' && ';
+
+// ── States ────────────────────────────────────────────────────────────────────────────────────
+
+interface State {
+  id: string;
+  label: string;
+  /** Lines shown under the label (the actions of the scenarios that end here). */
+  actions: string[];
 }
 
-type Escape = (text: string) => string;
+/** Hands out one state per distinct key, so equal text means the same state. */
+class StateRegistry {
+  private readonly byKey = new Map<string, State>();
+  private readonly byId = new Map<string, State>();
 
-/**
- * Text for a transition label. Transition labels are unquoted, and in a Mermaid state diagram a `;`
- * ends the statement, so HTML entities (which end in `;`) cannot be used here. Characters that
- * would break the label are swapped for look-alikes: U+037E (Greek question mark, looks like `;`)
- * and single angle quotes for `<` and `>`.
- */
-const transitionText = (text: string) =>
-  text.replace(/;/g, '\u037E').replace(/</g, '\u2039').replace(/>/g, '\u203A').replace(/\s*\r?\n\s*/g, ' ');
+  constructor(private readonly idPrefix: string) {}
 
-class States {
-  private readonly ids = new Map<string, string>();
-  readonly declarations: string[] = [];
-  /** Extra lines (actions) per state id, in insertion order without duplicates. */
-  private readonly extras = new Map<string, string[]>();
-  private readonly labels = new Map<string, string>();
-  private counter = 0;
-
-  constructor(private readonly prefix: string) {}
-
-  /** Returns the id of the state for `key`, creating it on first use. */
-  get(key: string, label: string): string {
-    let id = this.ids.get(key);
-    if (!id) {
-      id = `${this.prefix}${++this.counter}`;
-      this.ids.set(key, id);
-      this.labels.set(id, label);
-      this.extras.set(id, []);
+  /** The id of the state for `key`; the state is created the first time it is asked for. */
+  idFor(key: string, label: string): string {
+    let state = this.byKey.get(key);
+    if (!state) {
+      state = { id: `${this.idPrefix}${this.byKey.size + 1}`, label, actions: [] };
+      this.byKey.set(key, state);
+      this.byId.set(state.id, state);
     }
-    return id;
+    return state.id;
   }
 
-  /** Ids of all states created so far, in creation order. */
-  ids_(): string[] {
-    return [...this.labels.keys()];
+  addAction(id: string, action: string): void {
+    const state = this.byId.get(id);
+    if (state && !state.actions.includes(action)) state.actions.push(action);
   }
 
-  addExtra(id: string, line: string): void {
-    const lines = this.extras.get(id);
-    if (lines && !lines.includes(line)) lines.push(line);
+  ids(): string[] {
+    return [...this.byKey.values()].map((state) => state.id);
   }
 
-  render(): string[] {
-    return [...this.labels].map(([id, label]) => {
-      const extra = this.extras.get(id) ?? [];
-      return `  state "${[label, ...extra].join('<br/>')}" as ${id}`;
-    });
+  declarations(): string[] {
+    return [...this.byKey.values()].map(
+      (state) => `  state "${[state.label, ...state.actions].join(LINE_BREAK)}" as ${state.id}`,
+    );
   }
 }
 
-interface Parts {
+// ── Reading a scenario as a transition ────────────────────────────────────────────────────────
+
+interface ScenarioBreakdown {
   given: Step[];
   when?: Step;
   guards: Step[];
@@ -68,16 +73,17 @@ interface Parts {
   actions: Step[];
 }
 
-function split(scenario: Scenario): Parts {
-  const parts: Parts = { given: [], guards: [], actions: [] };
+/** Sorts the steps of a scenario into the roles they play in a state machine. */
+function breakDown(scenario: Scenario): ScenarioBreakdown {
+  const parts: ScenarioBreakdown = { given: [], guards: [], actions: [] };
   for (const step of scenario.steps) {
-    if (step.phase === 'outcome') {
-      if (!parts.then && step.keyword === 'THEN') parts.then = step;
+    if (step.phase === StepPhase.Outcome) {
+      if (!parts.then && step.keyword === StepKeyword.Then) parts.then = step;
       else parts.actions.push(step);
-    } else if (step.keyword === 'WHEN' && !parts.when) {
+    } else if (step.keyword === StepKeyword.When && !parts.when) {
       parts.when = step;
     } else if (!parts.when) {
-      parts.given.push(step); // GIVEN and any AND that continues it
+      parts.given.push(step); // a GIVEN and any AND that continues it
     } else {
       parts.guards.push(step);
     }
@@ -85,54 +91,92 @@ function split(scenario: Scenario): Parts {
   return parts;
 }
 
-export function statechart(
-  req: Requirement,
-  rootLabel: string,
-  cls: string | undefined,
-  colors: StatechartColors,
-  escape: Escape,
-): string {
-  const lines = ['stateDiagram-v2', '  direction LR', `  state "${rootLabel}" as R`, '  [*] --> R'];
+/** The text on an arrow: scenario name in bold, then the event, then the guards. */
+function transitionLabel(scenario: Scenario, parts: ScenarioBreakdown): string {
+  const lines = [bold(escapeTransitionLabel(scenario.name))];
+  if (parts.when) lines.push(escapeTransitionLabel(parts.when.text));
+  if (parts.guards.length > 0) {
+    lines.push(`[${parts.guards.map((guard) => escapeTransitionLabel(guard.text)).join(GUARD_SEPARATOR)}]`);
+  }
+  return lines.join(LINE_BREAK);
+}
 
-  if (req.delta === 'REMOVED') {
-    if (req.reason) lines.push(`  state "${escape(req.reason)}" as X1`, '  R --> X1 : Reason');
-    if (req.migration) lines.push(`  state "${escape(req.migration)}" as X2`, '  R --> X2 : Migration');
+/** A scenario without a THEN still needs somewhere to go; each one gets its own, never shared. */
+const noOutcomeKey = (scenarioIndex: number): string => `\u0000no-outcome-${scenarioIndex}`;
+
+// ── The diagram of one requirement ────────────────────────────────────────────────────────────
+
+class StatechartDiagram {
+  private readonly startStates = new StateRegistry('G'); // where scenarios begin (their GIVEN)
+  private readonly endStates = new StateRegistry('T'); // where scenarios end (their THEN)
+  private readonly transitions: string[] = [];
+
+  constructor(private readonly requirement: Requirement) {
+    requirement.scenarios.forEach((scenario, index) => this.addScenario(scenario, index));
   }
 
-  const given = new States('G');
-  const target = new States('T');
-  const transitions: string[] = [];
-
-  req.scenarios.forEach((scenario, i) => {
-    const parts = split(scenario);
-
-    const source = parts.given.length
-      ? given.get(parts.given.map((s) => s.text).join('\n'), parts.given.map((s) => escape(s.text)).join('<br/>'))
-      : 'R';
-
-    const label = [`<b>${transitionText(scenario.name)}</b>`];
-    if (parts.when) label.push(transitionText(parts.when.text));
-    if (parts.guards.length) label.push(`[${parts.guards.map((g) => transitionText(g.text)).join(' && ')}]`);
-
-    let to: string;
-    if (parts.then) {
-      to = target.get(parts.then.text, escape(parts.then.text));
-      parts.actions.forEach((a) => target.addExtra(to, escape(a.text)));
-    } else {
-      to = target.get(`\u0000no-outcome-${i}`, '(no outcome)');
-    }
-    transitions.push(`  ${source} --> ${to} : ${label.join('<br/>')}`);
-  });
-
-  // A GIVEN state is a context the requirement can be in, so it hangs off the requirement state;
-  // without this edge it would float disconnected from the rest of the diagram.
-  const entries = given.ids_().map((id) => `  R --> ${id} : GIVEN`);
-
-  lines.push(...given.render(), ...target.render(), ...entries, ...transitions);
-
-  if (cls && colors[cls]) {
-    const c = colors[cls];
-    lines.push(`  classDef ${cls} fill:${c.fill},stroke:${c.stroke},color:#111`, `  class R ${cls}`);
+  toSource(): string {
+    const { delta } = this.requirement;
+    const lines = [
+      'stateDiagram-v2',
+      '  direction LR',
+      `  state "${requirementLabel(this.requirement)}" as ${ROOT_ID}`,
+      `  ${START_MARKER} --> ${ROOT_ID}`,
+      ...this.removedRequirementNotes(),
+      ...this.startStates.declarations(),
+      ...this.endStates.declarations(),
+      ...this.givenEntries(),
+      ...this.transitions,
+    ];
+    if (delta) lines.push(`  ${classDefinition(delta)}`, `  class ${ROOT_ID} ${classNameOf(delta)}`);
+    return lines.join('\n');
   }
-  return lines.join('\n');
+
+  private addScenario(scenario: Scenario, index: number): void {
+    const parts = breakDown(scenario);
+    const from = this.startStateOf(parts);
+    const to = this.endStateOf(parts, index);
+    this.transitions.push(`  ${from} --> ${to} : ${transitionLabel(scenario, parts)}`);
+  }
+
+  /** The requirement's own state, or the GIVEN state when the scenario has one. */
+  private startStateOf(parts: ScenarioBreakdown): string {
+    if (parts.given.length === 0) return ROOT_ID;
+    const key = parts.given.map((step) => step.text).join('\n');
+    const label = parts.given.map((step) => escapeLabel(step.text)).join(LINE_BREAK);
+    return this.startStates.idFor(key, label);
+  }
+
+  /** The THEN state, which also lists the scenario's actions (the ANDs after the THEN). */
+  private endStateOf(parts: ScenarioBreakdown, scenarioIndex: number): string {
+    if (!parts.then) return this.endStates.idFor(noOutcomeKey(scenarioIndex), NO_OUTCOME_LABEL);
+
+    const id = this.endStates.idFor(parts.then.text, escapeLabel(parts.then.text));
+    parts.actions.forEach((action) => this.endStates.addAction(id, escapeLabel(action.text)));
+    return id;
+  }
+
+  /**
+   * A GIVEN state is a situation the requirement can be in, so it hangs off the requirement's state.
+   * Without this arrow it would float, disconnected from the rest of the diagram.
+   */
+  private givenEntries(): string[] {
+    return this.startStates.ids().map((id) => `  ${ROOT_ID} --> ${id} : GIVEN`);
+  }
+
+  private removedRequirementNotes(): string[] {
+    const { delta, reason, migration } = this.requirement;
+    if (delta !== DeltaKind.Removed) return [];
+
+    const lines: string[] = [];
+    if (reason) lines.push(`  state "${escapeLabel(reason)}" as X1`, `  ${ROOT_ID} --> X1 : Reason`);
+    if (migration) lines.push(`  state "${escapeLabel(migration)}" as X2`, `  ${ROOT_ID} --> X2 : Migration`);
+    return lines;
+  }
+}
+
+export class StatechartRenderer implements RequirementRenderer {
+  render(requirement: Requirement): string {
+    return new StatechartDiagram(requirement).toSource();
+  }
 }

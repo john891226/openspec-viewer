@@ -101,7 +101,7 @@ for (const [i, combo] of combos.entries()) {
 <script>window.postMessage({type:'render',title:'render-check',theme:'default',diagrams:${JSON.stringify(diagrams).replace(/</g, '\\u003c')}},'*');</script></body></html>`,
   );
   const flags = ['--headless=new', '--disable-gpu', '--virtual-time-budget=60000', ...(process.env.CI ? ['--no-sandbox'] : [])];
-  let dom = '';
+  let dom;
   try {
     dom = execFileSync(chrome, [...flags, '--dump-dom', pathToFileURL(page).href], { encoding: 'utf8', timeout: 180000, stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 1 << 28 });
   } catch (error) {

@@ -73,11 +73,11 @@ The panel SHALL work without network access using locally bundled Mermaid, and t
 - **THEN** no files in the workspace have been created or modified
 
 ### Requirement: Diagram settings
-The extension SHALL provide a setting `openspecViewer.diagram.renderer` (`flowchart`, `statechart`; default `flowchart`) and settings `openspecViewer.diagram.layout` (`decision-diamond`, `options-box`, `scenario-flow`; default `decision-diamond`) and `openspecViewer.diagram.andStyle` (`chained`, `list`; default `chained`), and open panels SHALL re-render when any of them changes.
+The extension SHALL provide a setting `openspecViewer.diagram.renderer` (`statechart`, `flowchart`; default `statechart`) and settings `openspecViewer.diagram.layout` (`decision-diamond`, `options-box`, `scenario-flow`; default `decision-diamond`) and `openspecViewer.diagram.andStyle` (`chained`, `list`; default `chained`), and open panels SHALL re-render when any of them changes.
 
 #### Scenario: Defaults
 - **WHEN** the user has not changed the settings
-- **THEN** diagrams use the `flowchart` renderer, `decision-diamond` layout and `chained` AND style
+- **THEN** diagrams use the `statechart` renderer (the layout and AND style only matter when switching to `flowchart`, where the defaults are `decision-diamond` and `chained`)
 
 #### Scenario: Change layout
 - **WHEN** the user changes `openspecViewer.diagram.layout` while a panel is open

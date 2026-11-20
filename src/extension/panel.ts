@@ -1,35 +1,54 @@
 import * as vscode from 'vscode';
-import { capabilityName, parseSpec, resolveOptions, toMermaid } from '../core';
-import type { RenderMessage, ThemeName } from './messages';
+import { capabilityName, parseSpec, toMermaid } from '../core';
+import { PANEL_VIEW_TYPE, SETTINGS_SECTION } from './constants';
+import { Debouncer } from './debounce';
+import { DiagramTheme, MessageType } from './messages';
+import type { ReadyMessage, RenderMessage } from './messages';
+import { readDiagramOptions } from './settings';
+import { buildWebviewHtml, createNonce } from './webviewHtml';
 
-const DEBOUNCE_MS = 200;
+/** How long to wait after the last keystroke before redrawing. */
+const REFRESH_DELAY_MS = 200;
 
-const themeName = (): ThemeName =>
-  vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark ||
-  vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.HighContrast
-    ? 'dark'
-    : 'default';
-
-function nonce(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  return Array.from({ length: 32 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+function currentTheme(): DiagramTheme {
+  const { kind } = vscode.window.activeColorTheme;
+  const isDark = kind === vscode.ColorThemeKind.Dark || kind === vscode.ColorThemeKind.HighContrast;
+  return isDark ? DiagramTheme.Dark : DiagramTheme.Light;
 }
 
+/**
+ * The side panel for one spec file. It listens to everything that should change the diagram
+ * (edits, saves, theme, settings) and redraws from the editor's current text, saved or not.
+ */
 class DiagramPanel {
-  private ready = false;
-  private closed = false;
-  private timer: ReturnType<typeof setTimeout> | undefined;
   private readonly panel: vscode.WebviewPanel;
-  private readonly disposables: vscode.Disposable[] = [];
+  private readonly subscriptions: vscode.Disposable[] = [];
+  private readonly refreshSoon = new Debouncer(REFRESH_DELAY_MS);
+  private readonly specKey: string;
+  private readonly capability: string | undefined;
+  private webviewIsReady = false;
+  private specIsClosed = false;
 
   constructor(
-    private readonly uri: vscode.Uri,
+    private readonly specUri: vscode.Uri,
     extensionUri: vscode.Uri,
-    private readonly onDispose: () => void,
+    private readonly onDisposed: () => void,
   ) {
-    const name = capabilityName(uri.path) ?? uri.path.split('/').pop() ?? 'spec';
-    this.panel = vscode.window.createWebviewPanel(
-      'openspecViewer.diagram',
+    this.specKey = specUri.toString();
+    this.capability = capabilityName(specUri.path);
+    this.panel = this.createPanel(extensionUri);
+    this.panel.webview.html = this.html(extensionUri);
+    this.subscribeToChanges();
+  }
+
+  reveal(): void {
+    this.panel.reveal(vscode.ViewColumn.Beside, true);
+  }
+
+  private createPanel(extensionUri: vscode.Uri): vscode.WebviewPanel {
+    const name = this.capability ?? this.specUri.path.split('/').pop() ?? 'spec';
+    return vscode.window.createWebviewPanel(
+      PANEL_VIEW_TYPE,
       `Diagram: ${name}`,
       { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
       {
@@ -38,123 +57,89 @@ class DiagramPanel {
         localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist')],
       },
     );
-    this.panel.webview.html = this.html(extensionUri);
+  }
 
-    this.disposables.push(
-      this.panel.webview.onDidReceiveMessage((m: { type?: string }) => {
-        if (m?.type === 'ready') {
-          this.ready = true;
-          void this.update();
-        }
-      }),
-      vscode.workspace.onDidChangeTextDocument((e) => {
-        if (e.document.uri.toString() === this.uri.toString()) this.schedule();
-      }),
-      vscode.workspace.onDidSaveTextDocument((d) => {
-        if (d.uri.toString() === this.uri.toString()) void this.update();
-      }),
-      vscode.workspace.onDidCloseTextDocument((d) => {
-        if (d.uri.toString() === this.uri.toString()) this.closed = true;
-      }),
-      vscode.workspace.onDidOpenTextDocument((d) => {
-        if (d.uri.toString() === this.uri.toString()) {
-          this.closed = false;
-          this.schedule();
-        }
-      }),
-      vscode.window.onDidChangeActiveColorTheme(() => void this.update()),
-      vscode.workspace.onDidChangeConfiguration((e) => {
-        if (e.affectsConfiguration('openspecViewer.diagram')) void this.update();
+  private html(extensionUri: vscode.Uri): string {
+    const { webview } = this.panel;
+    return buildWebviewHtml({
+      scriptUri: webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js')).toString(),
+      cspSource: webview.cspSource,
+      nonce: createNonce(),
+    });
+  }
+
+  // ── What makes the diagram change ───────────────────────────────────────────────────────────
+
+  private subscribeToChanges(): void {
+    const { workspace, window } = vscode;
+    this.subscriptions.push(
+      this.panel.webview.onDidReceiveMessage((message: Partial<ReadyMessage>) => this.onWebviewMessage(message)),
+      workspace.onDidChangeTextDocument((event) => this.ifThisSpec(event.document, () => this.refreshSoon.schedule(() => void this.refresh()))),
+      workspace.onDidSaveTextDocument((document) => this.ifThisSpec(document, () => void this.refresh())),
+      workspace.onDidCloseTextDocument((document) => this.ifThisSpec(document, () => (this.specIsClosed = true))),
+      workspace.onDidOpenTextDocument((document) =>
+        this.ifThisSpec(document, () => {
+          this.specIsClosed = false;
+          this.refreshSoon.schedule(() => void this.refresh());
+        }),
+      ),
+      window.onDidChangeActiveColorTheme(() => void this.refresh()),
+      workspace.onDidChangeConfiguration((event) => {
+        if (event.affectsConfiguration(SETTINGS_SECTION)) void this.refresh();
       }),
       this.panel.onDidDispose(() => this.dispose()),
     );
   }
 
-  reveal(): void {
-    this.panel.reveal(vscode.ViewColumn.Beside, true);
+  private ifThisSpec(document: vscode.TextDocument, action: () => void): void {
+    if (document.uri.toString() === this.specKey) action();
   }
 
-  private schedule(): void {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => void this.update(), DEBOUNCE_MS);
-  }
-
-  private async update(): Promise<void> {
-    if (!this.ready || this.closed) return;
-    try {
-      const doc = await vscode.workspace.openTextDocument(this.uri);
-      const config = vscode.workspace.getConfiguration('openspecViewer.diagram', this.uri);
-      const options = resolveOptions({ renderer: config.get<string>('renderer'), layout: config.get<string>('layout'), andStyle: config.get<string>('andStyle') });
-      const diagrams = toMermaid(parseSpec(doc.getText()), options);
-      const message: RenderMessage = {
-        type: 'render',
-        title: capabilityName(this.uri.path) ?? 'spec',
-        theme: themeName(),
-        diagrams,
-      };
-      await this.panel.webview.postMessage(message);
-    } catch {
-      // The document may have been deleted or the panel disposed meanwhile.
+  private onWebviewMessage(message: Partial<ReadyMessage>): void {
+    if (message?.type === MessageType.Ready) {
+      this.webviewIsReady = true;
+      void this.refresh();
     }
   }
 
-  private html(extensionUri: vscode.Uri): string {
-    const webview = this.panel.webview;
-    const script = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js'));
-    const n = nonce();
-    const csp = [
-      "default-src 'none'",
-      `script-src 'nonce-${n}'`,
-      "style-src 'unsafe-inline'",
-      `img-src ${webview.cspSource} data:`,
-      `font-src ${webview.cspSource}`,
-    ].join('; ');
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="${csp}">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenSpec diagram</title>
-<style>
-  body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 0 16px 32px; }
-  h1 { font-size: 1.2em; font-weight: 600; }
-  section { margin: 24px 0; padding-bottom: 16px; border-bottom: 1px solid var(--vscode-panel-border); overflow-x: auto; }
-  section h2 { font-size: 1em; margin: 0 0 8px; }
-  .message { padding: 12px 16px; border-left: 3px solid var(--vscode-editorInfo-foreground); background: var(--vscode-textBlockQuote-background); }
-  .error { color: var(--vscode-errorForeground); border-left-color: var(--vscode-errorForeground); white-space: pre-wrap; }
-  code { font-family: var(--vscode-editor-font-family); }
-</style>
-</head>
-<body>
-<h1 id="title"></h1>
-<div id="root"><p class="message">Loading…</p></div>
-<script nonce="${n}" src="${script}"></script>
-</body>
-</html>`;
+  /** Reads the spec as it is in the editor now, and sends the diagrams to the webview. */
+  private async refresh(): Promise<void> {
+    if (!this.webviewIsReady || this.specIsClosed) return;
+    try {
+      const document = await vscode.workspace.openTextDocument(this.specUri);
+      const message: RenderMessage = {
+        type: MessageType.Render,
+        title: this.capability ?? 'spec',
+        theme: currentTheme(),
+        diagrams: toMermaid(parseSpec(document.getText()), readDiagramOptions(this.specUri)),
+      };
+      await this.panel.webview.postMessage(message);
+    } catch {
+      // The file may have been deleted, or the panel disposed, while we were reading.
+    }
   }
 
   private dispose(): void {
-    if (this.timer) clearTimeout(this.timer);
-    this.disposables.forEach((d) => d.dispose());
-    this.onDispose();
+    this.refreshSoon.cancel();
+    this.subscriptions.forEach((subscription) => subscription.dispose());
+    this.onDisposed();
   }
 }
 
-/** One panel per spec file; re-activating reveals the existing one. */
-export class PanelManager implements vscode.Disposable {
+/** Keeps one panel per spec file: asking again for the same file brings the existing panel forward. */
+export class DiagramPanels implements vscode.Disposable {
   private readonly panels = new Map<string, DiagramPanel>();
 
   constructor(private readonly extensionUri: vscode.Uri) {}
 
-  show(uri: vscode.Uri): void {
-    const key = uri.toString();
+  show(specUri: vscode.Uri): void {
+    const key = specUri.toString();
     const existing = this.panels.get(key);
     if (existing) {
       existing.reveal();
-      return;
+    } else {
+      this.panels.set(key, new DiagramPanel(specUri, this.extensionUri, () => this.panels.delete(key)));
     }
-    this.panels.set(key, new DiagramPanel(uri, this.extensionUri, () => this.panels.delete(key)));
   }
 
   dispose(): void {

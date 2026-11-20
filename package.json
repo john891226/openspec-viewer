@@ -27,7 +27,8 @@
     "theme": "dark"
   },
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.90.0",
+    "node": ">=24"
   },
   "repository": {
     "type": "git",
@@ -80,14 +81,14 @@
       "properties": {
         "openspecViewer.diagram.renderer": {
           "type": "string",
-          "default": "flowchart",
+          "default": "statechart",
           "enum": [
-            "flowchart",
-            "statechart"
+            "statechart",
+            "flowchart"
           ],
           "enumDescriptions": [
-            "A flowchart per requirement. Uses the layout and AND style settings.",
-            "A state-machine style diagram (like xstate): GIVEN is the source state, WHEN the event, AND a guard, THEN the target state. Ignores the layout and AND style settings."
+            "A state-machine style diagram (like xstate): GIVEN is the source state, WHEN the event, AND a guard, THEN the target state. Ignores the layout and AND style settings.",
+            "A flowchart per requirement. Uses the layout and AND style settings."
           ],
           "description": "Which kind of diagram to draw. Both use Mermaid."
         },

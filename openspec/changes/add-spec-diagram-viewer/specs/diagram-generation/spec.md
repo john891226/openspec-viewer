@@ -75,7 +75,7 @@ The generator SHALL support two ways of showing AND lines: `chained` (default) a
 - **THEN** `chained` is used
 
 ### Requirement: Selectable renderer
-The generator SHALL support two renderers: `flowchart` (default) and `statechart`, the latter producing a Mermaid state diagram in the style of a state machine. The layout and AND-style options SHALL apply only to the `flowchart` renderer.
+The generator SHALL support two renderers: `statechart` (default), a Mermaid state diagram in the style of a state machine, and `flowchart`. The layout and AND-style options SHALL apply only to the `flowchart` renderer.
 
 #### Scenario: Statechart mapping
 - **WHEN** the renderer is `statechart` and a scenario has `GIVEN g`, `WHEN w`, `AND c`, `THEN t`, `AND a`
@@ -103,7 +103,7 @@ The generator SHALL support two renderers: `flowchart` (default) and `statechart
 
 #### Scenario: Default renderer
 - **WHEN** no renderer is given
-- **THEN** `flowchart` is used
+- **THEN** `statechart` is used
 
 ### Requirement: Safe label rendering
 The generator SHALL escape step and name text so that arbitrary characters (quotes, brackets, backticks, pipes, angle brackets) cannot break or inject into the Mermaid definition.
