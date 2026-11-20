@@ -1,11 +1,11 @@
-# OpenSpec Viewer
+# OpenSpec Diagrams
 
 [![CI](https://github.com/john891226/openspec-viewer/actions/workflows/ci.yml/badge.svg)](https://github.com/john891226/openspec-viewer/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Render [OpenSpec](https://github.com/Fission-AI/OpenSpec) `spec.md` files as live diagrams in VS Code.
 
-OpenSpec scenarios (`WHEN` / `THEN`) are precise for machines but hard for humans to follow as a whole. A hand-drawn diagram next to them would drift out of sync. OpenSpec Viewer **derives the diagram from the scenarios every time**, so the spec stays the single source of truth. Nothing is stored or hand-edited.
+OpenSpec scenarios (`WHEN` / `THEN`) are precise for machines but hard for humans to follow as a whole. A hand-drawn diagram next to them would drift out of sync. OpenSpec Diagrams **derives the diagram from the scenarios every time**, so the spec stays the single source of truth. Nothing is stored or hand-edited.
 
 ## Features
 
@@ -52,12 +52,12 @@ The diagram treats the scenarios of one requirement as **alternatives** of a sin
 
 ## Install
 
-From the Marketplace or Open VSX: search for **OpenSpec Viewer**.
+From the Marketplace or Open VSX: search for **OpenSpec Diagrams**.
 
 From a `.vsix` (for example one attached to a [GitHub Release](https://github.com/john891226/openspec-viewer/releases)):
 
 ```sh
-code --install-extension openspec-viewer-<version>.vsix
+code --install-extension openspec-diagrams-<version>.vsix
 ```
 
 or use **Extensions: Install from VSIX…** in VS Code.
@@ -68,7 +68,7 @@ In the project that holds the specs, add to `.vscode/extensions.json`:
 
 ```json
 {
-  "recommendations": ["juanpbacallao.openspec-viewer"]
+  "recommendations": ["juanpbacallao.openspec-diagrams"]
 }
 ```
 

@@ -1,6 +1,6 @@
 {
-  "name": "openspec-viewer",
-  "displayName": "OpenSpec Viewer",
+  "name": "openspec-diagrams",
+  "displayName": "OpenSpec Diagrams",
   "description": "Render OpenSpec spec.md files as live Mermaid diagrams, always derived from the scenarios.",
   "version": "0.0.1",
   "publisher": "juanpbacallao",
@@ -77,7 +77,7 @@
       ]
     },
     "configuration": {
-      "title": "OpenSpec Viewer",
+      "title": "OpenSpec Diagrams",
       "properties": {
         "openspecViewer.diagram.renderer": {
           "type": "string",

@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in improving OpenSpec Viewer! By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+Thanks for your interest in improving OpenSpec Diagrams! By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Setup
 
